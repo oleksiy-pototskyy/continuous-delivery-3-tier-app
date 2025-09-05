@@ -1,0 +1,93 @@
+name: Deploy API App
+
+on:
+  push:
+    branches: [main]
+    paths: ['app/api/**']
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: nodejs-api
+  ECS_CLUSTER: nodejs-api
+  ECS_SERVICE: nodejs-api
+  CONTAINER_NAME: nodejs-api
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        sparse-checkout: |
+          app/api/
+        sparse-checkout-cone-mode: false
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build and push Docker image
+      id: build-image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        cd app/api
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+    - name: Get current task definition
+      id: current-task-def
+      run: |
+        TASK_DEF=$(aws ecs describe-task-definition --task-definition $ECS_SERVICE --query 'taskDefinition.taskDefinitionArn' --output text)
+        echo "current-task-def=$TASK_DEF" >> $GITHUB_OUTPUT
+
+    - name: Deploy to ECS
+      id: deploy
+      env:
+        IMAGE_URI: ${{ steps.build-image.outputs.image }}
+      run: |
+        TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition $ECS_SERVICE --query 'taskDefinition')
+        NEW_TASK_DEFINITION=$(echo $TASK_DEFINITION | jq --arg IMAGE "$IMAGE_URI" '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn) | del(.revision) | del(.status) | del(.requiresAttributes) | del(.placementConstraints) | del(.compatibilities) | del(.registeredAt) | del(.registeredBy)')
+        
+        NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEFINITION" --query 'taskDefinition.taskDefinitionArn' --output text)
+        echo "new-task-def=$NEW_TASK_DEF_ARN" >> $GITHUB_OUTPUT
+        
+        aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --task-definition $NEW_TASK_DEF_ARN
+
+    - name: Wait for deployment
+      id: wait-deploy
+      run: |
+        echo "Waiting for service to stabilize..."
+        if aws ecs wait services-stable --cluster $ECS_CLUSTER --services $ECS_SERVICE --cli-read-timeout 900; then
+          echo "deployment-status=success" >> $GITHUB_OUTPUT
+        else
+          echo "deployment-status=failed" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+
+    - name: Rollback on failure
+      if: failure() && steps.current-task-def.outputs.current-task-def != ''
+      run: |
+        echo "Deployment failed, rolling back..."
+        aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --task-definition ${{ steps.current-task-def.outputs.current-task-def }}
+        aws ecs wait services-stable --cluster $ECS_CLUSTER --services $ECS_SERVICE --cli-read-timeout 600
+        echo "Rollback completed"
+
+    - name: Deployment success
+      if: steps.wait-deploy.outputs.deployment-status == 'success'
+      run: |
+        echo "✅ API application deployed successfully!"
+        echo "New image: ${{ steps.build-image.outputs.image }}"
+        echo "Task definition: ${{ steps.deploy.outputs.new-task-def }}"
