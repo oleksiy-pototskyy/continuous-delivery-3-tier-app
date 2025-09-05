@@ -1,3 +1,7 @@
+variable "app_name" {
+  description = "Name of the Project"
+}
+
 variable "domain_name" {
   description = "Domain name which will be used for AWS resources, e.g. youdomain.com"
 }

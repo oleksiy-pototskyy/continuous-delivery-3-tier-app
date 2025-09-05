@@ -36,6 +36,21 @@ module "vpc" {
   )
 }
 
+module "domain" {
+  source = "./modules/domain"
+
+  app_name = var.app_name
+  domain_name = var.domain_name
+  mandatory_tags = var.mandatory_tags
+}
+
+module "app" {
+  source = "./modules/app"
+  vpc_id = module.vpc.vpc_id
+  vpc_public_subnets = module.vpc.public_subnets
+  vpc_private_subnets = module.vpc.private_subnets
+}
+
 # module "db" {
 #   source = "./modules/db"
 #

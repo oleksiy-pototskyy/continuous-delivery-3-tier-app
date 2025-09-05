@@ -2,7 +2,7 @@ resource "aws_route53_zone" "domain" {
   name = var.domain_name
 
   tags = merge(
-    tomap({"Name" = "Mastering Terraform Domain Zone"}),
+    tomap({"Name" = var.app_name}),
     var.mandatory_tags
   )
 }
@@ -19,7 +19,7 @@ resource "aws_acm_certificate" "app" {
   }
 
   tags = merge(
-    tomap({"Name" = "Mastering Terraform SSL Certificate"}),
+    tomap({"Name" = var.app_name}),
     var.mandatory_tags
   )
 }
@@ -38,7 +38,7 @@ resource "aws_route53_record" "app" {
   records         = [each.value.record]
   ttl             = 60
   type            = each.value.type
-  zone_id         = var.domain_zone_id
+  zone_id         = aws_route53_zone.domain.zone_id
 }
 
 resource "aws_acm_certificate_validation" "ssl-validation" {

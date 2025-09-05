@@ -1,4 +1,4 @@
-# ECS Clusters
+# Web ECS Clusters
 resource "aws_ecs_cluster" "web" {
   name = "nodejs-web"
   
@@ -7,6 +7,129 @@ resource "aws_ecs_cluster" "web" {
     value = "enabled"
   }
 }
+
+resource "aws_ecs_service" "web" {
+  name            = "nodejs-web"
+  cluster         = aws_ecs_cluster.web.id
+  task_definition = aws_ecs_task_definition.web.arn
+  desired_count   = 2
+  launch_type     = "FARGATE"
+
+  network_configuration {
+    security_groups = [aws_security_group.web_ecs_tasks.id]
+    subnets         = var.vpc_private_subnets
+  }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.web.arn
+    container_name   = "nodejs-web"
+    container_port   = 3000
+  }
+
+  depends_on = [aws_lb_listener.web]
+}
+
+resource "aws_ecs_task_definition" "web" {
+  family                   = "nodejs-web"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = 256
+  memory                   = 512
+  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+
+  container_definitions = jsonencode([
+    {
+      name  = "nodejs-web"
+      image = "nginx:latest"
+      portMappings = [
+        {
+          containerPort = 3000
+          protocol      = "tcp"
+        }
+      ]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.web.name
+          "awslogs-region"        = data.aws_region.current.name
+          "awslogs-stream-prefix" = "ecs"
+        }
+      }
+    }
+  ])
+}
+
+resource "aws_security_group" "web_ecs_tasks" {
+  name_prefix = "ecs-tasks-"
+  vpc_id      = var.vpc_id
+
+  ingress {
+    from_port       = 3000
+    to_port         = 3000
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb_web.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_lb" "web" {
+  name               = "nodejs-web-alb"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.alb_web.id]
+  subnets            = var.vpc_public_subnets
+}
+
+resource "aws_lb_target_group" "web" {
+  name        = "nodejs-web-tg"
+  port        = 3000
+  protocol    = "HTTP"
+  vpc_id      = var.vpc_id
+  target_type = "ip"
+
+  health_check {
+    enabled             = true
+    healthy_threshold   = 2
+    interval            = 30
+    matcher             = "200"
+    path                = "/"
+    port                = "traffic-port"
+    protocol            = "HTTP"
+    timeout             = 5
+    unhealthy_threshold = 2
+  }
+}
+
+resource "aws_lb_listener" "web" {
+  load_balancer_arn = aws_lb.web.arn
+  port              = "80"
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.web.arn
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 resource "aws_ecs_cluster" "api" {
   name = "nodejs-api"
@@ -43,6 +166,7 @@ resource "aws_security_group" "alb_web" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
+
 
 resource "aws_security_group" "alb_api" {
   name_prefix = "alb-api-"
@@ -89,14 +213,8 @@ resource "aws_security_group" "ecs_tasks" {
   }
 }
 
+
 # Application Load Balancers
-resource "aws_lb" "web" {
-  name               = "nodejs-web-alb"
-  internal           = false
-  load_balancer_type = "application"
-  security_groups    = [aws_security_group.alb_web.id]
-  subnets            = var.aws_vpc_public_subnets
-}
 
 resource "aws_lb" "api" {
   name               = "nodejs-api-alb"
@@ -107,25 +225,6 @@ resource "aws_lb" "api" {
 }
 
 # Target Groups
-resource "aws_lb_target_group" "web" {
-  name        = "nodejs-web-tg"
-  port        = 3000
-  protocol    = "HTTP"
-  vpc_id      = var.aws_vpc_id
-  target_type = "ip"
-
-  health_check {
-    enabled             = true
-    healthy_threshold   = 2
-    interval            = 30
-    matcher             = "200"
-    path                = "/"
-    port                = "traffic-port"
-    protocol            = "HTTP"
-    timeout             = 5
-    unhealthy_threshold = 2
-  }
-}
 
 resource "aws_lb_target_group" "api" {
   name        = "nodejs-api-tg"
@@ -148,15 +247,6 @@ resource "aws_lb_target_group" "api" {
 }
 
 # ALB Listeners
-resource "aws_lb_listener" "web" {
-  load_balancer_arn = aws_lb.web.arn
-  port              = "80"
-  protocol          = "HTTP"
-
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.web.arn
-  }
 }
 
 resource "aws_lb_listener" "api" {
@@ -194,35 +284,7 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
 }
 
 # ECS Task Definitions (placeholder - will be updated by CI/CD)
-resource "aws_ecs_task_definition" "web" {
-  family                   = "nodejs-web"
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
-  cpu                      = 256
-  memory                   = 512
-  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
 
-  container_definitions = jsonencode([
-    {
-      name  = "nodejs-web"
-      image = "nginx:latest"
-      portMappings = [
-        {
-          containerPort = 3000
-          protocol      = "tcp"
-        }
-      ]
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          "awslogs-group"         = aws_cloudwatch_log_group.web.name
-          "awslogs-region"        = data.aws_region.current.name
-          "awslogs-stream-prefix" = "ecs"
-        }
-      }
-    }
-  ])
-}
 
 resource "aws_ecs_task_definition" "api" {
   family                   = "nodejs-api"
@@ -255,26 +317,7 @@ resource "aws_ecs_task_definition" "api" {
 }
 
 # ECS Services
-resource "aws_ecs_service" "web" {
-  name            = "nodejs-web"
-  cluster         = aws_ecs_cluster.web.id
-  task_definition = aws_ecs_task_definition.web.arn
-  desired_count   = 2
-  launch_type     = "FARGATE"
 
-  network_configuration {
-    security_groups = [aws_security_group.ecs_tasks.id]
-    subnets         = var.aws_vpc_private_subnets
-  }
-
-  load_balancer {
-    target_group_arn = aws_lb_target_group.web.arn
-    container_name   = "nodejs-web"
-    container_port   = 3000
-  }
-
-  depends_on = [aws_lb_listener.web]
-}
 
 resource "aws_ecs_service" "api" {
   name            = "nodejs-api"
