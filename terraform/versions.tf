@@ -7,9 +7,7 @@ terraform {
   }
 
   required_version = "1.13.1"
-  backend "s3" {
-    dynamodb_table = "3tier-app-state-lock"
-  }
+  backend "s3" { }
 }
 
 provider "aws" {
