@@ -12,11 +12,10 @@ RUN npm ci --only=production
 COPY . .
 
 # Ensure non-root user for security
-RUN addgroup -S nodejs && adduser -S node -G nodejs
 USER node
 
 # Expose app port (defined via env)
-EXPOSE 3000
+EXPOSE 80
 
 # Environment variables (default values can be overridden at runtime)
 ENV NODE_ENV=production \
