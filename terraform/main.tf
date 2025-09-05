@@ -46,9 +46,13 @@ module "domain" {
 
 module "app" {
   source = "./modules/app"
+  aws_region = var.aws_region
   vpc_id = module.vpc.vpc_id
   vpc_public_subnets = module.vpc.public_subnets
   vpc_private_subnets = module.vpc.private_subnets
+  app_name = var.app_name
+  mandatory_tags = var.mandatory_tags
+  ssl_certificate_arn = module.domain.ssl_certificate_arn
 }
 
 # module "db" {
@@ -61,9 +65,15 @@ module "app" {
 #   mandatory_tags = var.mandatory_tags
 # }
 
+module "cdn" {
+  source = "./modules/cdn"
 
-
-
-
-
+  app_name = var.app_name
+  domain_name = var.domain_name
+  mandatory_tags = var.mandatory_tags
+  web_alb_dns_name = module.app.web_alb_dns_name
+  api_alb_dns_name = module.app.api_alb_dns_name
+  domain_zone_id = module.domain.domain_zone_id
+  ssl_certificate_arn = module.domain.ssl_certificate_arn
+}
 
