@@ -1,19 +1,27 @@
-FROM node:18-alpine
+# Use official Node.js LTS as base image (small, maintained, secure)
+FROM node:24-alpine AS base
 
-RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
-
+# Set working directory inside container
 WORKDIR /app
 
+# Install dependencies only (leverage caching)
 COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
+RUN npm ci --only=production
 
-COPY --chown=nodejs:nodejs . .
+# Copy app source code
+COPY . .
 
-USER nodejs
+# Ensure non-root user for security
+RUN addgroup -S nodejs && adduser -S node -G nodejs
+USER node
 
-ENV PORT=80
-ENV API_HOST=https://api.toptal.pototskyy.net
+# Expose app port (defined via env)
+EXPOSE 3000
 
-EXPOSE 80
+# Environment variables (default values can be overridden at runtime)
+ENV NODE_ENV=production \
+    PORT=80 \
+    API_HOST=https://api.toptal.pototskyy.net
 
+# Run app
 CMD ["npm", "start"]
