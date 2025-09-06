@@ -20,7 +20,7 @@ EXPOSE 3000
 # Environment variables (default values can be overridden at runtime)
 ENV NODE_ENV=production \
     PORT=3000 \
-    API_HOST=https://toptal.pototskyy.net/api/
+    API_HOST=https://toptal.pototskyy.net
 
 # Run app
 CMD ["npm", "start"]

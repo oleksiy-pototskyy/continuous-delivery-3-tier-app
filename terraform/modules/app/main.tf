@@ -132,7 +132,7 @@ resource "aws_ecs_task_definition" "web" {
   container_definitions = jsonencode([
     {
       name  = "nodejs-web"
-      image = "846244128423.dkr.ecr.us-east-1.amazonaws.com/nodejs-web:3fe496607f0adaa5c8d55fdc8706fbdca0158aeb"
+      image = "846244128423.dkr.ecr.us-east-1.amazonaws.com/nodejs-web:latest"
       portMappings = [
         {
           containerPort = 3000
@@ -150,9 +150,9 @@ resource "aws_ecs_task_definition" "web" {
     }
   ])
 
-  lifecycle {
-    ignore_changes = [container_definitions]
-  }
+  # lifecycle {
+  #   ignore_changes = [container_definitions]
+  # }
 }
 
 resource "aws_security_group" "web_ecs_tasks" {
@@ -407,7 +407,7 @@ resource "aws_ecs_task_definition" "api" {
   container_definitions = jsonencode([
     {
       name  = "nodejs-api"
-      image = "nginx:latest"
+      image = "846244128423.dkr.ecr.us-east-1.amazonaws.com/nodejs-api:latest"
       portMappings = [
         {
           containerPort = 3000
@@ -438,7 +438,7 @@ resource "aws_ecs_task_definition" "api" {
           valueFrom = "${var.db_secret_arn}:dbhost::"
         },
         {
-          name      = "PORT"
+          name      = "DBPORT"
           valueFrom = "${var.db_secret_arn}:dbport::"
         }
       ]
@@ -452,6 +452,10 @@ resource "aws_ecs_task_definition" "api" {
       }
     }
   ])
+
+  # lifecycle {
+  #   ignore_changes = [container_definitions]
+  # }
 }
 
 # ECS Services

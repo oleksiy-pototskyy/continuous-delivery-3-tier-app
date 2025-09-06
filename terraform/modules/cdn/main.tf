@@ -16,6 +16,7 @@ resource "aws_cloudfront_distribution" "cdn" {
   origin {
     domain_name = var.api_alb_dns_name
     origin_id   = "api-origin"
+    # origin_path = "/api"
 
     custom_origin_config {
       http_port              = 80
