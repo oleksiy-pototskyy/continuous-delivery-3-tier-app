@@ -60,7 +60,7 @@ jobs:
             --cpu 256 \
             --memory 512 \
             --execution-role-arn $(aws iam get-role --role-name ecs-task-execution-role --query 'Role.Arn' --output text) \
-            --container-definitions "[{\"name\":\"$CONTAINER_NAME\",\"image\":\"$IMAGE_URI\",\"portMappings\":[{\"containerPort\":3000,\"protocol\":\"tcp\"}],\"logConfiguration\":{\"logDriver\":\"awslogs\",\"options\":{\"awslogs-group\":\"/ecs/$ECS_SERVICE\",\"awslogs-region\":\"$AWS_REGION\",\"awslogs-stream-prefix\":\"ecs\"}}}]" \
+            --container-definitions "[{\"name\":\"$CONTAINER_NAME\",\"image\":\"$IMAGE_URI\",\"portMappings\":[{\"containerPort\":3000,\"protocol\":\"tcp\"}],\"environment\":[{\"name\":\"PORT\",\"value\":\"3000\"}],\"secrets\":[{\"name\":\"DB\",\"valueFrom\":\"arn:aws:secretsmanager:$AWS_REGION:846244128423:secret:pg-postgres:dbname::\"},{\"name\":\"DBUSER\",\"valueFrom\":\"arn:aws:secretsmanager:$AWS_REGION:846244128423:secret:pg-postgres:dbuser::\"},{\"name\":\"DBPASS\",\"valueFrom\":\"arn:aws:secretsmanager:$AWS_REGION:846244128423:secret:pg-postgres:dbpass::\"},{\"name\":\"DBHOST\",\"valueFrom\":\"arn:aws:secretsmanager:$AWS_REGION:846244128423:secret:pg-postgres:dbhost::\"},{\"name\":\"DBPORT\",\"valueFrom\":\"arn:aws:secretsmanager:$AWS_REGION:846244128423:secret:pg-postgres:dbport::\"}],\"logConfiguration\":{\"logDriver\":\"awslogs\",\"options\":{\"awslogs-group\":\"/ecs/$ECS_SERVICE\",\"awslogs-region\":\"$AWS_REGION\",\"awslogs-stream-prefix\":\"ecs\"}}}]" \
             --query 'taskDefinition.taskDefinitionArn' --output text)
           
           echo "new-task-def=$NEW_TASK_DEF_ARN" >> $GITHUB_OUTPUT
