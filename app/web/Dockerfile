@@ -20,7 +20,7 @@ EXPOSE 80
 # Environment variables (default values can be overridden at runtime)
 ENV NODE_ENV=production \
     PORT=80 \
-    API_HOST=https://api.toptal.pototskyy.net
+    API_HOST=https://toptal.pototskyy.net/api/
 
 # Run app
 CMD ["npm", "start"]
