@@ -24,4 +24,3 @@ ENV NODE_ENV=production \
 
 # Run app
 CMD ["npm", "start"]
-

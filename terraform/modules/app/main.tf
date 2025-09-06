@@ -107,6 +107,15 @@ resource "aws_ecs_service" "web" {
   desired_count   = 2
   launch_type     = "FARGATE"
 
+  deployment_controller {
+    type = "ECS"
+  }
+
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
+
   network_configuration {
     security_groups = [aws_security_group.web_ecs_tasks.id]
     subnets         = var.vpc_private_subnets
@@ -119,6 +128,10 @@ resource "aws_ecs_service" "web" {
   }
 
   depends_on = [aws_lb_listener.web-http, aws_lb_listener.web-https]
+
+  lifecycle {
+    ignore_changes = [task_definition]
+  }
 }
 
 resource "aws_ecs_task_definition" "web" {
@@ -150,9 +163,9 @@ resource "aws_ecs_task_definition" "web" {
     }
   ])
 
-  # lifecycle {
-  #   ignore_changes = [container_definitions]
-  # }
+  lifecycle {
+    ignore_changes = [container_definitions]
+  }
 }
 
 resource "aws_security_group" "web_ecs_tasks" {
@@ -453,9 +466,9 @@ resource "aws_ecs_task_definition" "api" {
     }
   ])
 
-  # lifecycle {
-  #   ignore_changes = [container_definitions]
-  # }
+  lifecycle {
+    ignore_changes = [container_definitions]
+  }
 }
 
 # ECS Services
@@ -467,6 +480,15 @@ resource "aws_ecs_service" "api" {
   task_definition = aws_ecs_task_definition.api.arn
   desired_count   = 2
   launch_type     = "FARGATE"
+
+  deployment_controller {
+    type = "ECS"
+  }
+
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
 
   network_configuration {
     security_groups = [aws_security_group.api_ecs_tasks.id]
@@ -480,6 +502,9 @@ resource "aws_ecs_service" "api" {
   }
 
   depends_on = [aws_lb_listener.api-http, aws_lb_listener.api-https]
+  lifecycle {
+    ignore_changes = [task_definition]
+  }
 }
 
 # Auto Scaling

@@ -48,16 +48,6 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-      - name: Save current task definition
-        id: current-task-def
-        run: |
-          TASK_DEF=$(aws ecs describe-services \
-            --cluster $ECS_CLUSTER \
-            --services $ECS_SERVICE \
-            --query 'services[0].taskDefinition' \
-            --output text)
-          echo "current-task-def=$TASK_DEF" >> $GITHUB_OUTPUT
-
       - name: Register new task definition
         id: register-task-def
         env:
@@ -95,27 +85,12 @@ jobs:
           if aws ecs wait services-stable \
             --cluster $ECS_CLUSTER \
             --services $ECS_SERVICE \
-            --cli-read-timeout 900; then
+            --cli-read-timeout 1200; then
             echo "status=success" >> $GITHUB_OUTPUT
           else
             echo "status=failed" >> $GITHUB_OUTPUT
             exit 1
           fi
-
-      - name: Rollback on failure
-        if: failure()
-        run: |
-          echo "Deployment failed. Rolling back..."
-          aws ecs update-service \
-            --cluster $ECS_CLUSTER \
-            --service $ECS_SERVICE \
-            --task-definition ${{ steps.current-task-def.outputs.current-task-def }} \
-            --force-new-deployment
-          aws ecs wait services-stable \
-            --cluster $ECS_CLUSTER \
-            --services $ECS_SERVICE \
-            --cli-read-timeout 600
-          echo "Rollback completed"
 
       - name: Deployment success
         if: steps.wait.outputs.status == 'success'
