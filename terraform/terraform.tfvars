@@ -9,6 +9,8 @@ rds_type = "db.t3.micro"
 
 domain_name = "toptal.pototskyy.net"
 
+db_name = "toptal"
+
 mandatory_tags = {
   "owner"   = "Oleksiy-Pototskyy"
   "email"   = "o.pototskyy@softblues.io"

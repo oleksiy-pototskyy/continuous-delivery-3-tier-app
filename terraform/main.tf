@@ -55,15 +55,16 @@ module "app" {
   ssl_certificate_arn = module.domain.ssl_certificate_arn
 }
 
-# module "db" {
-#   source = "./modules/db"
-#
-#   aws_vpc_id = module.vpc.vpc_id
-#   aws_vpc_db_subnets = module.vpc.database_subnets
-#   aws_db_type = var.aws_db_type
-#   aws_db_name = var.aws_db_name
-#   mandatory_tags = var.mandatory_tags
-# }
+module "db" {
+  source = "./modules/db"
+
+  vpc_id = module.vpc.vpc_id
+  vpc_db_subnets = module.vpc.database_subnets
+  db_name = var.db_name
+  mandatory_tags = var.mandatory_tags
+  app_name = var.app_name
+  sg_api_id = module.app.sg_api_ecs_tasks
+}
 
 module "cdn" {
   source = "./modules/cdn"

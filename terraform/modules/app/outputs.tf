@@ -8,6 +8,10 @@ output "api_alb_dns_name" {
   value       = aws_lb.api.dns_name
 }
 
+output "sg_api_ecs_tasks" {
+  value = aws_security_group.api_ecs_tasks.id
+}
+
 # output "web_alb_zone_id" {
 #   description = "Zone ID of the web ALB"
 #   value       = aws_lb.web.zone_id

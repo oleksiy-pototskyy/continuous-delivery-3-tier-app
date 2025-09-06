@@ -70,7 +70,7 @@ resource "aws_cloudfront_distribution" "cdn" {
   }
 
   viewer_certificate {
-    cloudfront_default_certificate  = true
+    cloudfront_default_certificate  = false
     minimum_protocol_version = "TLSv1"
     acm_certificate_arn      = var.ssl_certificate_arn
     ssl_support_method       = "sni-only"
