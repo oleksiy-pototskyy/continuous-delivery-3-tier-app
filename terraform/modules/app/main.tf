@@ -62,6 +62,13 @@ resource "aws_iam_role_policy" "ecs_ecr_policy" {
           "ecr:BatchGetImage"
         ]
         Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = var.db_secret_arn
       }
     ]
   })
@@ -108,7 +115,7 @@ resource "aws_ecs_service" "web" {
   load_balancer {
     target_group_arn = aws_lb_target_group.web.arn
     container_name   = "nodejs-web"
-    container_port   = 80
+    container_port   = 3000
   }
 
   depends_on = [aws_lb_listener.web-http, aws_lb_listener.web-https]
@@ -125,10 +132,10 @@ resource "aws_ecs_task_definition" "web" {
   container_definitions = jsonencode([
     {
       name  = "nodejs-web"
-      image = "nginx:latest"
+      image = "846244128423.dkr.ecr.us-east-1.amazonaws.com/nodejs-web:3fe496607f0adaa5c8d55fdc8706fbdca0158aeb"
       portMappings = [
         {
-          containerPort = 80
+          containerPort = 3000
           protocol      = "tcp"
         }
       ]
@@ -142,6 +149,10 @@ resource "aws_ecs_task_definition" "web" {
       }
     }
   ])
+
+  lifecycle {
+    ignore_changes = [container_definitions]
+  }
 }
 
 resource "aws_security_group" "web_ecs_tasks" {
@@ -149,8 +160,8 @@ resource "aws_security_group" "web_ecs_tasks" {
   vpc_id      = var.vpc_id
 
   ingress {
-    from_port       = 80
-    to_port         = 80
+    from_port       = 3000
+    to_port         = 3000
     protocol        = "tcp"
     security_groups = [aws_security_group.alb_web.id]
   }
@@ -173,7 +184,7 @@ resource "aws_lb" "web" {
 
 resource "aws_lb_target_group" "web" {
   name        = "nodejs-web-tg"
-  port        = 80
+  port        = 3000
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
   target_type = "ip"
@@ -308,8 +319,8 @@ resource "aws_security_group" "api_ecs_tasks" {
   vpc_id      = var.vpc_id
 
   ingress {
-    from_port       = 80
-    to_port         = 80
+    from_port       = 3000
+    to_port         = 3000
     protocol        = "tcp"
     security_groups = [aws_security_group.alb_api.id]
   }
@@ -337,7 +348,7 @@ resource "aws_lb" "api" {
 
 resource "aws_lb_target_group" "api" {
   name        = "nodejs-api-tg"
-  port        = 80
+  port        = 3000
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
   target_type = "ip"
@@ -399,8 +410,36 @@ resource "aws_ecs_task_definition" "api" {
       image = "nginx:latest"
       portMappings = [
         {
-          containerPort = 80
+          containerPort = 3000
           protocol      = "tcp"
+        }
+      ]
+      environment = [
+        {
+          name  = "PORT"
+          value = "3000"
+        }
+      ]
+      secrets = [
+        {
+          name      = "DB"
+          valueFrom = "${var.db_secret_arn}:dbname::"
+        },
+        {
+          name      = "DBUSER"
+          valueFrom = "${var.db_secret_arn}:dbuser::"
+        },
+        {
+          name      = "DBPASS"
+          valueFrom = "${var.db_secret_arn}:dbpass::"
+        },
+        {
+          name      = "DBHOST"
+          valueFrom = "${var.db_secret_arn}:dbhost::"
+        },
+        {
+          name      = "PORT"
+          valueFrom = "${var.db_secret_arn}:dbport::"
         }
       ]
       logConfiguration = {
@@ -433,7 +472,7 @@ resource "aws_ecs_service" "api" {
   load_balancer {
     target_group_arn = aws_lb_target_group.api.arn
     container_name   = "nodejs-api"
-    container_port   = 80
+    container_port   = 3000
   }
 
   depends_on = [aws_lb_listener.api-http, aws_lb_listener.api-https]

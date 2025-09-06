@@ -28,3 +28,8 @@ variable "mandatory_tags" {
 variable "ssl_certificate_arn" {
   description = "SSL certificate ARN to be used for ALB"
 }
+
+variable "db_secret_arn" {
+  description = "ARN of the database secret in AWS Secrets Manager"
+  type        = string
+}

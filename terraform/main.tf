@@ -53,6 +53,7 @@ module "app" {
   app_name = var.app_name
   mandatory_tags = var.mandatory_tags
   ssl_certificate_arn = module.domain.ssl_certificate_arn
+  db_secret_arn = module.db.db_secret_arn
 }
 
 module "db" {
