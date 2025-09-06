@@ -53,20 +53,15 @@ jobs:
         env:
           IMAGE_URI: ${{ steps.build-image.outputs.image }}
         run: |
-          TASK_DEF_JSON=$(aws ecs describe-task-definition \
-            --task-definition ${{ steps.current-task-def.outputs.current-task-def }} \
-            --query 'taskDefinition' \
-            --output json)
-          
-          NEW_TASK_DEF=$(echo $TASK_DEF_JSON | jq --arg IMAGE "$IMAGE_URI" --arg NAME "$CONTAINER_NAME" \
-            '(.containerDefinitions[] | select(.name == $NAME) | .image) = $IMAGE
-             | del(.taskDefinitionArn, .revision, .status, .requiresAttributes,
-                   .placementConstraints, .compatibilities, .registeredAt, .registeredBy)')
-          
           NEW_TASK_DEF_ARN=$(aws ecs register-task-definition \
-            --cli-input-json "$NEW_TASK_DEF" \
-            --query 'taskDefinition.taskDefinitionArn' \
-            --output text)
+            --family $ECS_SERVICE \
+            --network-mode awsvpc \
+            --requires-compatibilities FARGATE \
+            --cpu 256 \
+            --memory 512 \
+            --execution-role-arn $(aws iam get-role --role-name ecs-task-execution-role --query 'Role.Arn' --output text) \
+            --container-definitions "[{\"name\":\"$CONTAINER_NAME\",\"image\":\"$IMAGE_URI\",\"portMappings\":[{\"containerPort\":3000,\"protocol\":\"tcp\"}],\"logConfiguration\":{\"logDriver\":\"awslogs\",\"options\":{\"awslogs-group\":\"/ecs/$ECS_SERVICE\",\"awslogs-region\":\"$AWS_REGION\",\"awslogs-stream-prefix\":\"ecs\"}}}]" \
+            --query 'taskDefinition.taskDefinitionArn' --output text)
           
           echo "new-task-def=$NEW_TASK_DEF_ARN" >> $GITHUB_OUTPUT
 
