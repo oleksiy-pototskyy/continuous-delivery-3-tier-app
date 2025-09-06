@@ -26,7 +26,7 @@ resource "aws_cloudfront_distribution" "cdn" {
   }
 
   enabled = true
-  aliases = ["www.toptal.pototskyy.net"]
+  aliases = ["toptal.pototskyy.net"]
 
   # Default behavior for web (toptal.pototskyy.net)
   default_cache_behavior {
@@ -38,8 +38,9 @@ resource "aws_cloudfront_distribution" "cdn" {
 
     forwarded_values {
       query_string = true
+      headers      = ["*"]
       cookies {
-        forward = "none"
+        forward = "all"
       }
     }
   }
@@ -69,30 +70,18 @@ resource "aws_cloudfront_distribution" "cdn" {
   }
 
   viewer_certificate {
+    cloudfront_default_certificate  = true
+    minimum_protocol_version = "TLSv1"
     acm_certificate_arn      = var.ssl_certificate_arn
     ssl_support_method       = "sni-only"
-    minimum_protocol_version = "TLSv1.2_2021"
   }
 }
 
 # Route53 hosted zone data source
 resource "aws_route53_record" "web" {
   zone_id = var.domain_zone_id
-  name    = "www"
+  name    = ""
   type    = "A"
-
-  alias {
-    name                   = aws_cloudfront_distribution.cdn.domain_name
-    zone_id                = aws_cloudfront_distribution.cdn.hosted_zone_id
-    evaluate_target_health = false
-  }
-}
-
-# AAAA record for toptal.pototskyy.net
-resource "aws_route53_record" "web_aaaa" {
-  zone_id = var.domain_zone_id
-  name    = "www"
-  type    = "AAAA"
 
   alias {
     name                   = aws_cloudfront_distribution.cdn.domain_name
